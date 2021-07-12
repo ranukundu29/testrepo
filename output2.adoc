@@ -1,0 +1,817 @@
+image:extracted-media\media/image1.png[image,width=816,height=273]
+
+== Using IBM AIX 7.2 and/or PowerVM (VIOS 3.1) with NetApp ONTAP
+
+=== ONTAP SAN Host
+
+____
+NetApp
+
+March 26, 2021
+
+This PDF was generated from https://docs.netapp.com/us-en/ontap-sanhost/hu_aix_72.html on March 29, 2021. Always check docs.netapp.com for the latest.
+
+*Table of Contents*
+____
+
+link:#Using_IBM_AIX_7.2_and/or_PowerVM_(VIOS_3[Using IBM AIX 7.2 and/or PowerVM (VIOS 3.1) with NetApp ONTAP] link:#Using_IBM_AIX_7.2_and/or_PowerVM_(VIOS_3[1]
+
+link:#installing-the-aixvios-host-utilities[Installing the AIX/VIOS Host Utilities] link:#installing-the-aixvios-host-utilities[1]
+
+link:#san-toolkit[SAN Toolkit] link:#san-toolkit[1]
+
+link:#san-booting[SAN Booting] link:#san-booting[2]
+
+link:#multipathing[Multipathing] link:#multipathing[2]
+
+link:#recommended-settings[Recommended Settings] link:#recommended-settings[4]
+
+link:#recommended-settings-for-metrocluster[Recommended Settings for MetroCluster] link:#recommended-settings-for-metrocluster[5]
+
+link:#known-problems-and-limitations[Known Problems and Limitations] link:#known-problems-and-limitations[5]
+
+____
+[#Using_IBM_AIX_7.2_and/or_PowerVM_(VIOS_3 .anchor]####**Using IBM AIX 7.2 and/or PowerVM (VIOS 3.1) with NetApp ONTAP**
+____
+
+=== Installing the AIX/VIOS Host Utilities
+
+____
+You must install the AIX Host Utilities Kit while using AIX MPIO with NetApp ONTAP Storage.
+
+You can download the compressed file containing the Host Utilities software packages from the NetApp Support Site. After you have the file, you must uncompress it to get the two software packages you need to install the Host Utilities.
+
+*Steps*
+____
+
+[arabic]
+. Login to your host.
+* On an AIX host, log in as *root*.
+* On a PowerVM host, log in as *padmin*, and then enter the oem_setup_env command to become root.
+. Download a copy of the compressed file containing the Host Utilities from NetApp Support Site to a directory on your host.
+. Go to the directory containing the download.
+. Uncompress the file and extract the SAN Toolkit software package.
+
+____
+zcat ntap_aix_host_utilities_6.0.tar.Z | tar -xvf –
+
+The following directory is created when you uncompress the file: ntap_aix_host_utilities_6.0. This directory will have one of the following subdirectories: MPIO, NON_MPIO, or SAN_Tool_Kit
+____
+
+[arabic, start=5]
+. Install the AIX MPIO:
+
+____
+installp -aXYd /var/tmp/ntap_aix_host_utilities_6.0/MPIO NetApp.MPIO_Host_Utilities_Kit
+____
+
+[arabic, start=6]
+. Install the SAN Toolkit:
+
+____
+installp -aXYd /var/tmp/ntap_aix_host_utilities_6.0/SAN_Tool_Kit NetApp.SAN_toolkit
+____
+
+[arabic, start=7]
+. Reboot the host.
+
+=== SAN Toolkit
+
+____
+The toolkit is installed automatically when you install the NetApp Host Utilities package. This kit provides the sanlun utility, which helps you manage LUNs and HBAs. The sanlun command returns information about the LUNs mapped to your host, multipathing, and information necessary to create initiator groups.
+
+*Example*
+
+In the following example, the sanlun lun show command returns LUN information.
+____
+
+[width="100%",cols="28%,19%,14%,13%,14%,12%",options="header",]
+|===
+a|
+____
+#sanlun lun show
+
+controller(7mode)/ vserver(Cmode) mode
+____
+
+a|
+____
+lun-pathname
+____
+
+a|
+____
+device filename
+____
+
+a|
+____
+host adapter
+____
+
+a|
+____
+lun protocol
+____
+
+|size
+| | | | | |
+a|
+____
+data_vserver
+____
+
+a|
+____
+/vol/vol1/lun1
+____
+
+a|
+____
+hdisk0
+____
+
+a|
+____
+fcs0
+____
+
+a|
+____
+FCP
+____
+
+|60g
+a|
+____
+C
+____
+
+| | | | |
+a|
+____
+data_vserver
+____
+
+a|
+____
+/vol/vol2/lun2
+____
+
+a|
+____
+hdisk0
+____
+
+a|
+____
+fcs0
+____
+
+a|
+____
+FCP
+____
+
+|20g
+a|
+____
+C
+____
+
+| | | | |
+a|
+____
+data_vserver
+____
+
+a|
+____
+/vol/vol3/lun3
+____
+
+a|
+____
+hdisk11
+____
+
+a|
+____
+fcs0
+____
+
+a|
+____
+FCP
+____
+
+|20g
+a|
+____
+C
+____
+
+| | | | |
+a|
+____
+data_vserver
+____
+
+a|
+____
+/vol/vol4/lun4
+____
+
+a|
+____
+hdisk14
+____
+
+a|
+____
+fcs0
+____
+
+a|
+____
+FCP
+____
+
+|20g
+a|
+____
+C
+____
+
+| | | | |
+|===
+
+=== SAN Booting
+
+____
+*Before you begin*
+
+If you decide to use SAN booting, it must be supported by your configuration. You can use the https://mysupport.netapp.com/matrix/imt.jsp?components=71102%3B&solution=1&isHWU&src=IMT[NetApp] https://mysupport.netapp.com/matrix/imt.jsp?components=71102%3B&solution=1&isHWU&src=IMT[Interoperability Matrix Tool] to verify that your OS, HBA, HBA firmware and the HBA boot BIOS, and ONTAP version are supported.
+
+SAN booting is the process of setting up a SAN-attached disk (a LUN) as a boot device for an AIX/PowerVM host. You can set up a SAN boot LUN to work in an AIX MPIO environment that is running the AIX Host Utilities with either the FC or FCoE protocol. The method you use for creating a SAN boot LUN and installing a new OS image on it in an AIX MPIO environment can vary, depending on which protocol you are using.
+____
+
+=== Multipathing
+
+____
+Multipathing allows you to configure multiple network paths between the host and storage system. If one path fails, traffic continues on the remaining paths. The AIX and PowerVM environments of the Host Utilities use AIX’s native multipathing solution (MPIO).
+
+For AIX, Path Control Module (PCM) is responsible for controlling multiple paths. PCM is a storage vendor supplied code that handles path management. This gets installed and enabled as part of the Host Utilities installation.
+____
+
+==== Non-ASA Configuration
+
+____
+For non-ASA configuration there should be two groups of paths with different priorities. The paths with the higher priorities are Active/Optimized, meaning they are serviced by the controller where the aggregate is located. The paths with the lower priorities are active but are non-optimized because they are served from a different controller. The non-optimized paths are only used when no optimized paths are available.
+
+*Example*
+
+The following example displays the correct output for an ONTAP LUN with two Active/Optimized paths and two Active/Non-Optimized paths:
+____
+
+[width="100%",cols="19%,1%,18%,1%,10%,1%,12%,1%,18%,1%,18%",options="header",]
+|===
+|host path state | |vserver path type | a|
+AIX MPIO
+
+path
+
+| |host adapter | |vserver LIF | a|
+____
+AIX MPIO
+
+path priority
+____
+
+|up | |secondary | |path0 | |fcs0 | |fc_aix_1 | |1
+|up | |primary | |path1 | |fcs0 | |fc_aix_2 | |1
+|up | |primary | |path2 | |fcs1 | |fc_aix_3 | |1
+|up | |secondary | |path3 | |fcs1 | |fc_aix_4 | |1
+|===
+
+==== All SAN Array Configuration
+
+____
+In All SAN Array (ASA) configurations, all paths to a given Logical Unit (LUN) are active and optimized. This means I/O can be served through all paths at the same time, thereby enabling better performance.
+
+*Example*
+
+The following example displays the correct output for an ONTAP LUN:
+
+ All SAN Arrays (ASA) configurations are supported beginning in ONTAP 9.8 for AIX Hosts.
+____
+
+[width="100%",cols="12%,2%,14%,2%,12%,2%,16%,18%,2%,20%",options="header",]
+|===
+|host path state | |vserver path type | a|
+____
+AIX MPIO
+
+path
+____
+
+| a|
+____
+host adapter
+____
+
+a|
+____
+vserver LIF
+____
+
+| a|
+____
+AIX MPIO
+
+path priority
+____
+
+|up | |primary | |path0 | a|
+____
+fcs0
+____
+
+|fc_aix_1 | a|
+____
+1
+____
+
+|up | |primary | |path1 | a|
+____
+fcs0
+____
+
+|fc_aix_2 | a|
+____
+1
+____
+
+|up | |primary | |path2 | a|
+____
+fcs1
+____
+
+|fc_aix_3 | a|
+____
+1
+____
+
+|up | |primary | |path3 | a|
+____
+fcs1
+____
+
+|fc_aix_4 | a|
+____
+1
+____
+
+|===
+
+=== Recommended Settings
+
+____
+Following are some recommended parameter settings for NetApp ONTAP LUN’s. The critical parameters for ONTAP LUN’s are set automatically after installing the NetApp Host Utilities Kit.
+____
+
+[width="100%",cols="25%,25%,25%,25%",options="header",]
+|===
+a|
+____
+*Parameter*
+____
+
+a|
+____
+*Environment*
+____
+
+a|
+____
+*Value for AIX*
+____
+
+a|
+____
+*Note*
+____
+
+a|
+____
+algorithm
+____
+
+a|
+____
+MPIO
+____
+
+a|
+____
+round_robin
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+hcheck_cmd
+____
+
+a|
+____
+MPIO
+____
+
+a|
+____
+inquiry
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+hcheck_interval
+____
+
+a|
+____
+MPIO
+____
+
+a|
+____
+30
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+hcheck_mode
+____
+
+a|
+____
+MPIO
+____
+
+a|
+____
+nonactive
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+lun_reset_spt
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+yes
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+max_transfer
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+FC LUNs: 0x100000 bytes
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+qfull_dly
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+2-second delay
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+queue_depth
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+64
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+reserve_policy
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+no_reserve
+____
+
+a|
+____
+Set by Host Utilities
+____
+
+a|
+____
+re_timeout (disk)
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+30 seconds
+____
+
+a|
+____
+Uses OS Default values
+____
+
+a|
+____
+dyntrk
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+Yes
+____
+
+a|
+____
+Uses OS Default values
+____
+
+a|
+____
+fc_err_recov
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+Fast_fail
+____
+
+a|
+____
+Uses OS Default values
+____
+
+a|
+____
+q_type
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+simple
+____
+
+a|
+____
+Uses OS Default values
+____
+
+a|
+____
+num_cmd_elems
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+1024 for AIX
+
+3072 for VIOS
+____
+
+a|
+____
+FC EN1B, FC EN1C
+____
+
+|===
+
+[width="100%",cols="25%,25%,25%,25%",options="header",]
+|===
+a|
+____
+*Parameter*
+____
+
+a|
+____
+*Environment*
+____
+
+a|
+____
+*Value for AIX*
+____
+
+a|
+____
+*Note*
+____
+
+a|
+____
+num_cmd_elems
+____
+
+a|
+____
+MPIO / non-MPIO
+____
+
+a|
+____
+1024 for AIX
+____
+
+a|
+____
+FC EN0G
+____
+
+|===
+
+=== Recommended Settings for MetroCluster
+
+____
+By default, the AIX operating system enforces a shorter I/O timeout if when no paths to a LUN are available. This might occur in configurations including single-switch SAN fabric and MetroCluster configurations that experience unplanned failovers. For additional information and recommended changes to default settings, please refer to https://kb.netapp.com/app/answers/answer_view/a_id/1001318[NetApp KB1001318]
+____
+
+=== Known Problems and Limitations
+
+[width="100%",cols="25%,25%,25%,25%",options="header",]
+|===
+a|
+____
+*NetApp Bug ID*
+____
+
+a|
+____
+*Title*
+____
+
+a|
+____
+*Description*
+____
+
+a|
+____
+*Partner ID*
+____
+
+a|
+____
+1307653
+____
+
+a|
+____
+Seeing I/O issues on VIOS 3.1.1.10 during SFO
+
+faults and straight io
+____
+
+a|
+____
+On VIOS 3.1.1 IO failures may be seen on NPIV client disk which are backed by 16/32Gb FC adapters. Also, a vfchost driver may get into a state where it stops processing I/O requests from the client.
+
+Applying IBM APAR IJ22290 IBM APAR
+
+IJ23222 will fix the issue
+____
+
+a|
+____
+:leveloffset: -1
+
+<<<
+
+*Copyright Information*
+
+Copyright © 2021 NetApp, Inc. All rights reserved.
+
+Printed in the U.S. No part of this document
+
+covered by copyright may be reproduced in any form or by any means-graphic, electronic, or
+
+mechanical, including photocopying, recording, taping, or storage in an electronic retrieval system-
+
+without prior written permission of the copyright owner.
+____
+
+| | | a|
+____
+Software derived from copyrighted NetApp material is subject to the following license and disclaimer:
+____
+
+| | | a|
+____
+THIS SOFTWARE IS PROVIDED BY NETAPP “AS IS” AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, WHICH ARE HEREBY DISCLAIMED. IN NO EVENT SHALL NETAPP BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+____
+
+|===
